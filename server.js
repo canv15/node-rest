@@ -13,11 +13,52 @@ function resource(uri, handlerDefine) {
 	uriStack.pop();
 }
 
+function parseUri(uri, handler) {
+	var regexp = /\{[a-zA-Z_]\w*\}/g;
+	handler.params = (uri.match(regexp) || []).map(function(param) {
+		return param.slice(1, -1);
+	});
+	return uri.replace(regexp,'([\\w-]+)');
+}
+
 function httpMethod(method) {
 	return function (uri, handler) {
-		var url = uriStack.join('') + uri;
-		handlerMap[url] = handlerMap[url] || {};
-		handlerMap[url][method] = handler;
+		var uri = uriStack.join('') + uri;
+		uri = parseUri(uri, handler);
+		handlerMap[uri] = handlerMap[uri] || {};
+		handlerMap[uri][method] = handler;
+	}
+}
+
+function makeParameters(pNames, pValues) {
+	var result = {};
+	if(!pNames || !pValues) {
+		return result
+	}
+	var i=0, len = Math.min(pNames.length, pValues.length);
+	for(i; i<len; i++) {
+		result[pNames[i]] = pValues[i];
+	}
+	return result;
+}
+
+function findMatch(uri) {
+	var uriPatterns = Object.keys(handlerMap),
+		i=0, len= uriPatterns.length,
+		m, handlerObj, parameters, uriPattern;
+	
+	for(i; i<len; i++ ) {
+		uriPattern = uriPatterns[i];
+		m = uri.match(new RegExp('^' + uriPattern + '$'));
+		//TODO: catch RegExp
+		if(m) {
+			handlerObj = handlerMap[uriPattern];
+			return {
+				handlerObj: handlerObj,
+				paramValues: m.slice(1)
+			}
+		}
+
 	}
 }
 
@@ -29,16 +70,20 @@ var del = httpMethod('DELETE');
 
 function rest(req, res, next) {
 		var pathname = url.parse(req.url).pathname;
-		var handlerObj = handlerMap[pathname] || {};
+		var matchResult = findMatch(pathname);
+		//TODO add method to findMatch arguments
+		if(!matchResult) { return next(); }
+
+		var handlerObj = matchResult.handlerObj;
 		var handler = handlerObj[req.method]
 		var result;
-		if(handler) {
-			result = handler(req);
-			res.writeHead(200,{'Content-Type':'application/json'});
-			res.end(JSON.stringify(result));
-		} else {
-			next();
-		}
+		if(!handler) { return next(); }
+
+		req.pathParams = makeParameters(handler.params, matchResult.paramValues);
+		result = handler(req);
+		delete req.pathParams;
+		res.writeHead(200,{'Content-Type':'application/json'});
+		res.end(JSON.stringify(result));
 }
 
 /*****************************************************************/
@@ -52,6 +97,16 @@ resource('/abcd',function(req) {
 	post('/zzz', function(req) {
 		console.log('I am zzz');
 		return {message:'I am zzz'};
+	});
+
+	put('/{id}',function(req) {
+		var id = req.pathParams.id;
+		console.log('create',id);
+		return {id:id};
+	});
+
+	del('/{name}/{type}', function(req) {
+		return req.pathParams;
 	});
 });
 
