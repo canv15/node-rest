@@ -1,8 +1,10 @@
 var url = require('url');
+var fs = require('fs');
+var PATH = require('path');
 
 var handlerMap = {};
-
 var uriStack = [];
+var RESOURCE_LOCATION = './resource';
 
 /*
 * gloabl regester function
@@ -102,19 +104,54 @@ function findMatch(req, res) {
 
 
 function rest(req, res, next) {
-		var result,
-			handler = findMatch(req, res);
+	init(RESOURCE_LOCATION);
 
-		if(!handler) { return next(); }
+	var result,
+		handler = findMatch(req, res);
 
-		result = handler(req);
-		delete req.pathParams;
-		res.writeHead(200,{'Content-Type':'application/json'});
-		res.end(JSON.stringify(result));
+	
+	if(!handler) { return next(); }
+
+	result = handler(req);
+	delete req.pathParams;
+	res.writeHead(200,{'Content-Type':'application/json'});
+	res.end(JSON.stringify(result));
 }
 
-require('./resource')
 
-module.exports = function() {
+function loadResource(path) {
+	var s = fs.statSync(path);
+	var absPath = PATH.resolve(process.cwd() + '/' + path);
+	if (s.isFile() && PATH.extname(path) === '.js') {
+		try {
+			// reload resource module
+			delete require.cache[absPath];
+			require(path);
+		} catch(e) {
+			console.log(e);
+		}
+	} else if (s.isDirectory()){
+		var files = fs.readdirSync(path);
+		files.forEach(function(filename){
+			loadResource(path + '/' + filename);
+		});
+	}
+}
+
+function clearCache() {
+	handlerMap = {};
+	uriStack = [];
+}
+
+function init(path) {
+	clearCache();
+	loadResource(path);
+}
+
+
+module.exports = function(resource) {
+	if(resource) {
+		RESOURCE_LOCATION = resource;
+	}
 	return rest
 }
