@@ -13,7 +13,7 @@ var req = {
 	method: 'GET'
 }
 
-var handler = rest();
+var handler = rest('./resource');
 
 var next = function() {
 	console.log('next....');
@@ -36,5 +36,11 @@ handler(req,res, next);
 var req = {
 	url : '/abcd/xyz/shenyu',
 	method: 'DELETE'
+}
+handler(req,res, next);
+
+var req = {
+	url : '/hello',
+	method: 'GET'
 }
 handler(req,res, next);
