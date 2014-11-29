@@ -4,11 +4,31 @@ var handlerMap = {};
 
 var uriStack = [];
 
-function resource(uri, handlerDefine) {
+/*
+* gloabl regester function
+*/
+resource = function (uri, handlerDefine) {
 	uriStack.push(uri);
 	handlerDefine();
 	uriStack.pop();
 }
+
+function httpMethod (method) {
+	return function (uri, handler) {
+		var uri = uriStack.join('') + uri,
+			pattern,
+			handlerObj = parse(uri, handler);
+		pattern = handlerObj.regexp.toString();
+		handlerMap[pattern] = handlerMap[pattern] ||  handlerObj;
+		handlerMap[pattern].handlers[method] = handler;
+	}
+}
+
+get = httpMethod('GET');
+post = httpMethod('POST');
+put = httpMethod('PUT');
+del = httpMethod('DELETE');
+
 
 function parse(uri, handler) {
 	var regexp = /\{[a-zA-Z_]\w*\}/g, //it will match patten: /asdf/{xxx}/{yyy}/sdfs
@@ -28,16 +48,6 @@ function parse(uri, handler) {
 	};
 }
 
-function httpMethod(method) {
-	return function (uri, handler) {
-		var uri = uriStack.join('') + uri,
-			pattern,
-			parseResult = parse(uri, handler);
-		pattern = parseResult.regexp.toString();
-		handlerMap[pattern] = handlerMap[pattern] ||  parseResult;
-		handlerMap[pattern].handlers[method] = handler;
-	}
-}
 
 function makeParameters(pNames, pValues) {
 	var result = {};
@@ -51,7 +61,7 @@ function makeParameters(pNames, pValues) {
 	return result;
 }
 
-function bindingArguments(handler, req, res, pathParams) {
+function bindingArguments(handler, req, res ) {
 	var argNames = handler.args,
 		args = [];
 
@@ -60,8 +70,8 @@ function bindingArguments(handler, req, res, pathParams) {
 			args.push(req);
 		} else if (name === 'httpResponse') {
 			args.push(res);
-		} else if (pathParams[name]) {
-			args.push(pathParams[name]);
+		} else if (req.pathParams[name]) {
+			args.push(req.pathParams[name]);
 		} else {
 			args.push(undefined);
 		}
@@ -74,8 +84,7 @@ function bindingArguments(handler, req, res, pathParams) {
 
 function findMatch(req, res) {
 	var pathname = url.parse(req.url).pathname,
-		m, handlerObj, pattern,
-		pathParam; 
+		m, handlerObj, pattern;
 
 	for(pattern in handlerMap) {
 		handlerObj = handlerMap[pattern];
@@ -83,18 +92,13 @@ function findMatch(req, res) {
 		if(m) {
 			handler = handlerObj.handlers[req.method];
 			if(handler) {
-				pathParams = makeParameters(handlerObj.params, m.slice(1));
-				return bindingArguments(handler,req,res,pathParams);
+				req.pathParams = makeParameters(handlerObj.params, m.slice(1));
+				return bindingArguments(handler,req,res);
 			}
 		}
 
 	}
 }
-
-var get = httpMethod('GET');
-var post = httpMethod('POST');
-var put = httpMethod('PUT');
-var del = httpMethod('DELETE');
 
 
 function rest(req, res, next) {
@@ -109,32 +113,7 @@ function rest(req, res, next) {
 		res.end(JSON.stringify(result));
 }
 
-/*****************************************************************/
-
-resource('/abcd',function() {
-	get('/xyz',function(httpRequest) {
-		console.log('hi, I am get');
-		return {message:'I am xyz',url: httpRequest.url};
-	});
-
-	post('/zzz', function() {
-		console.log('I am zzz');
-		return {message:'I am zzz'};
-	});
-
-	put('/{id}',function(id) {
-		console.log('create',id);
-		return {id:id};
-	});
-
-	del('/{name}/{type}', function(name, httpResponse, type) {
-		return {
-			name: name,
-			type: type,
-			res: typeof httpResponse
-		}
-	});
-});
+require('./resource')
 
 module.exports = function() {
 	return rest
