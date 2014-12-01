@@ -1,6 +1,7 @@
 var url = require('url');
 var fs = require('fs');
 var PATH = require('path');
+var extend = require('extend');
 
 var handlerMap = {};
 var uriStack = [];
@@ -104,7 +105,9 @@ function findMatch(req, res) {
 
 
 function rest(req, res, next) {
-	init(RESOURCE_LOCATION);
+	if(config.mode === 'dev') {
+		init(RESOURCE_LOCATION);
+	}
 
 	var result,
 		handler = findMatch(req, res);
@@ -148,10 +151,29 @@ function init(path) {
 	loadResource(path);
 }
 
+/*
+* config === string, just represents resource location
+* config === null, the resource default value is resource
+* config == obj, module work as config
+*/
 
-module.exports = function(resource) {
-	if(resource) {
-		RESOURCE_LOCATION = resource;
+var DEFAULT_CONFIG = { 
+	mode: 'dev' 
+};
+
+var config = DEFAULT_CONFIG;
+
+module.exports = function(config) {
+	if(typeof config === 'string') {
+		if(resource) {
+			RESOURCE_LOCATION = resource;
+		}
+	} else if (typeof config === 'object') {
+		config = extend(true,DEFAULT_CONFIG, config);
 	}
+	if(config.mode === 'product') {
+		init(RESOURCE_LOCATION);
+	}
+	rest.clear = clearCache;
 	return rest
 }
