@@ -1,4 +1,6 @@
-exports.createRes = function (){
+var assert  = require('assert');
+
+exports.mockResponse = function (){
 	return {
 		code: undefined,
 		head: undefined,
@@ -12,3 +14,17 @@ exports.createRes = function (){
 		}
 	};
 };
+
+exports.mockUNext = function() {
+	assert.fail('next should not be called');
+}
+
+var mockNext = function() {
+	mockNext.result = function() {
+		mockNext.result = function() {return false;}
+		return true;
+	}
+}
+mockNext.result = function() {return false;}
+
+exports.mockNext = mockNext;

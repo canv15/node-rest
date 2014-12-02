@@ -129,7 +129,7 @@ function loadResource(path) {
 		try {
 			// reload resource module
 			delete require.cache[absPath];
-			require(path);
+			require(absPath);
 		} catch(e) {
 			console.log(e);
 		}
@@ -163,13 +163,13 @@ var DEFAULT_CONFIG = {
 
 var config = DEFAULT_CONFIG;
 
-module.exports = function(config) {
-	if(typeof config === 'string') {
+module.exports = function(cfg) {
+	if(typeof cfg === 'string') {
 		if(resource) {
 			RESOURCE_LOCATION = resource;
 		}
-	} else if (typeof config === 'object') {
-		config = extend(true,DEFAULT_CONFIG, config);
+	} else if (typeof cfg === 'object') {
+		config = extend(true,DEFAULT_CONFIG, cfg);
 	}
 	if(config.mode === 'product') {
 		init(RESOURCE_LOCATION);
