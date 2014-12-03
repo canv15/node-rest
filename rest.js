@@ -1,14 +1,20 @@
-var url = require('url');
-var fs = require('fs');
-var PATH = require('path');
-var extend = require('extend');
-
+var url = require('url'),
+	fs = require('fs'),
+	PATH = require('path'),
+	extend = require('extend');
+/*
+*******************************************************
+	global variables define
+*******************************************************
+*/
 var handlerMap = {};
 var uriStack = [];
-var RESOURCE_LOCATION = './resource';
+var config;
 
 /*
-* gloabl regester function
+*******************************************************
+	global regester function
+*******************************************************
 */
 resource = function (uri, handlerDefine) {
 	uriStack.push(uri);
@@ -16,8 +22,13 @@ resource = function (uri, handlerDefine) {
 	uriStack.pop();
 }
 
-function httpMethod (method) {
+httpMethod = function (method) {
 	return function (uri, handler) {
+		if(typeof uri === 'function') {
+			handler = uri;
+			uri = '';
+		}
+
 		var uri = uriStack.join('') + uri,
 			pattern,
 			handlerObj = parse(uri, handler);
@@ -32,6 +43,12 @@ post = httpMethod('POST');
 put = httpMethod('PUT');
 del = httpMethod('DELETE');
 
+
+/*
+*******************************************************
+	implement
+*******************************************************
+*/
 
 function parse(uri, handler) {
 	var regexp = /\{[a-zA-Z_]\w*\}/g, //it will match patten: /asdf/{xxx}/{yyy}/sdfs
@@ -106,7 +123,7 @@ function findMatch(req, res) {
 
 function rest(req, res, next) {
 	if(config.mode === 'dev') {
-		init(RESOURCE_LOCATION);
+		init();
 	}
 
 	var result,
@@ -115,10 +132,27 @@ function rest(req, res, next) {
 	
 	if(!handler) { return next(); }
 
-	result = handler(req);
-	delete req.pathParams;
-	res.writeHead(200,{'Content-Type':'application/json'});
-	res.end(JSON.stringify(result));
+	try {
+		result = handler(req);
+
+		delete req.pathParams;
+
+		if (result) {
+			res.writeHead(200,{'Content-Type':'application/json'});
+			res.end(JSON.stringify(result));
+		} else {
+			res.writeHead(204);
+			res.end();
+		}
+	} catch (e) {
+		if(typeof e.code === 'number' && e.msg) {
+			res.writeHead(e.code,{'Content-Type':'application/json'});
+			res.end(JSON.stringify(e.msg));
+		} else {
+			res.writeHead(500,{'Content-Type':'application/json'});
+			res.end(JSON.stringify(e));
+		}
+	}
 }
 
 
@@ -127,7 +161,6 @@ function loadResource(path) {
 	var absPath = PATH.resolve(process.cwd() + '/' + path);
 	if (s.isFile() && PATH.extname(path) === '.js') {
 		try {
-			// reload resource module
 			delete require.cache[absPath];
 			require(absPath);
 		} catch(e) {
@@ -146,34 +179,33 @@ function clearCache() {
 	uriStack = [];
 }
 
-function init(path) {
+function init() {
 	clearCache();
-	loadResource(path);
+	loadResource(config.resourceLocation);
 }
+
+
+var DEFAULT_CONFIG = { 
+	mode: 'dev',
+	resourceLocation : './resource'
+};
 
 /*
 * config === string, just represents resource location
 * config === null, the resource default value is resource
 * config == obj, module work as config
 */
-
-var DEFAULT_CONFIG = { 
-	mode: 'dev' 
-};
-
-var config = DEFAULT_CONFIG;
-
 module.exports = function(cfg) {
 	if(typeof cfg === 'string') {
-		if(resource) {
-			RESOURCE_LOCATION = resource;
-		}
-	} else if (typeof cfg === 'object') {
-		config = extend(true,DEFAULT_CONFIG, cfg);
-	}
+		cfg = { resourceLocation: cfg};
+	} 
+
+	config = extend(true,DEFAULT_CONFIG, cfg);
+	
 	if(config.mode === 'product') {
-		init(RESOURCE_LOCATION);
+		init();
 	}
+
 	rest.clear = clearCache;
 	return rest
 }

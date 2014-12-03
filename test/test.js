@@ -139,5 +139,89 @@ describe('url match', function() {
 		rest(req, res, mockUNext);
 		assert.deepEqual(JSON.parse(res.body),{type:'request',id:'123456'});
 	});
+
+	it('single function as param with http method', function() {
+		resource('/rest', function() {
+			get(function() {
+				return {msg:'ok'};
+			});
+		});
+
+		var res = mockRes(),
+			req = {
+				url: '/rest',
+				method: 'GET'
+			};
+		rest(req, res, mockUNext);
+		assert.equal(JSON.parse(res.body).msg, 'ok');
+	});
+
+	it('204 will be return, if no content returned by resource', function() {
+		resource('/rest', function() {
+			get(function(){});
+		});
+		
+		var res = mockRes(),
+			req = {
+				url: '/rest',
+				method: 'GET'
+			};
+
+		rest(req, res, mockUNext);
+		assert.equal(res.code, 204);
+	});
+
+	it('nest resource defination support', function() {
+		resource('/rest', function() {
+			resource('/order', function() {
+				get('/list',function(){});
+			});
+		});
+
+		var res = mockRes(),
+			req = {
+				url: '/rest/order/list',
+				method: 'GET'
+			};
+		rest(req, res, mockUNext);
+		assert.equal(res.code, 204);
+	});
+
+	it('convert common exception to server internal error', function () {
+		resource('/rest', function() {
+			get(function() { 
+				throw 'error';
+			});
+		});
+
+		var res = mockRes(),
+			req = {
+				url: '/rest',
+				method: 'GET'
+			};
+		rest(req, res, mockUNext);
+		assert.equal(res.code,500);
+		assert.equal(JSON.parse(res.body),'error');
+	});
+
+	it('handle special error throwen by resource', function() {
+		resource('/rest', function () {
+			get(function() {
+				throw {
+					code: 501,
+					msg: 'Not Implemented'
+				};
+			});
+		});
+
+		var res = mockRes(),
+			req = {
+				url: '/rest',
+				method: 'GET'
+			};
+		rest(req, res, mockUNext);
+		assert.equal(res.code, 501);
+		assert.equal(JSON.parse(res.body), 'Not Implemented');
+	});
 });
 
