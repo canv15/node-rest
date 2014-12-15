@@ -4,12 +4,13 @@ var url = require('url'),
 	extend = require('extend');
 /*
 *******************************************************
-	global variables define
+	global variables defination
 *******************************************************
 */
 var handlerMap = {};
 var uriStack = [];
 var config;
+var logger;
 
 /*
 *******************************************************
@@ -32,8 +33,21 @@ httpMethod = function (method) {
 		var uri = uriStack.join('') + uri,
 			pattern,
 			handlerObj = parse(uri, handler);
+
+		logger.info(['register resource',uri,method].join(' '));
 		pattern = handlerObj.regexp.toString();
 		handlerMap[pattern] = handlerMap[pattern] ||  handlerObj;
+
+		if(handlerMap[pattern].handlers[method]) {
+			logger.warn([handlerMap[pattern].handlers[method].toString(),
+				'will be overrided by',
+				handler.toString(),
+				'when register resource',
+				uri,
+				method
+			].join(' '));
+		};
+		handler.method = method;
 		handlerMap[pattern].handlers[method] = handler;
 	}
 }
@@ -63,6 +77,7 @@ function parse(uri, handler) {
 		params: (uri.match(regexp) || []).map(function(param) {
 			return param.slice(1, -1);
 		}),
+		uri: uri,
 		regexp : new RegExp('^' + uri.replace(regexp,'([\\w-]+)') + '$'),
 		handlers : {}
 	};
@@ -112,6 +127,13 @@ function findMatch(req, res) {
 		if(m) {
 			handler = handlerObj.handlers[req.method];
 			if(handler) {
+				logger.info(['http request',
+						req.method,
+						req.url,
+						'was catched by resource',
+						handlerObj.uri,
+						req.method
+					].join(' '));
 				req.pathParams = makeParameters(handlerObj.params, m.slice(1));
 				return bindingArguments(handler,req,res);
 			}
@@ -187,8 +209,14 @@ function init() {
 
 var DEFAULT_CONFIG = { 
 	mode: 'dev',
-	resourceLocation : './resource'
+	resourceLocation : './resource',
+	logger: {
+		info: function() {},
+		warn: function() {},
+		error: function() {}
+	}
 };
+
 
 /*
 * config === string, just represents resource location
@@ -204,6 +232,12 @@ module.exports = function(cfg) {
 	
 	if(config.mode === 'product') {
 		init();
+	}
+
+	if(typeof config.logger === 'function') {
+		logger = config.logger.call(undefined);
+	} else {
+		logger = config.logger;
 	}
 
 	rest.clear = clearCache;

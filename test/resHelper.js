@@ -28,3 +28,25 @@ var mockNext = function() {
 mockNext.result = function() {return false;}
 
 exports.mockNext = mockNext;
+
+var loggerFactory = function() {
+	return {
+		info: function(msg) {
+			loggerFactory.lastInfo = msg;
+		},
+		warn: function(msg) {
+			loggerFactory.lastWarn = msg;
+		},
+		error: function(msg) {
+			loggerFactory.lastError = msg;
+		}
+	}
+}
+
+loggerFactory.clear = function() {
+	delete loggerFactory.lastInfo;
+	delete loggerFactory.lastWarn;
+	delete loggerFactory.lastError;
+}
+
+exports.mockLogger = loggerFactory;

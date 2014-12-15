@@ -6,7 +6,7 @@ var http = require('http'),
 
 var app = connect()
 	.use(morgan())
-	.use(rest());
+	.use(rest({logger: console}));
 
 
 http.createServer(app).listen(8080);	
