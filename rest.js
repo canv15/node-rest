@@ -1,5 +1,6 @@
 var url = require('url'),
 	fs = require('fs'),
+	util = require('util'),
 	PATH = require('path'),
 	extend = require('extend');
 /*
@@ -30,6 +31,13 @@ httpMethod = function (method) {
 			uri = '';
 		}
 
+		if(typeof uri !== 'string') {
+			throw new Error('uri must be a string rather than ' + typeof uri + ', uri:' + util.inspect(uri));
+		}
+
+		if(typeof handler !== 'function') {
+			throw new Error('handler must be a function rather than ' + typeof handler + ', handler:' + util.inspect(handler));
+		}
 		var uri = uriStack.join('') + uri,
 			pattern,
 			handlerObj = parse(uri, handler);
@@ -112,9 +120,11 @@ function bindingArguments(handler, req, res ) {
 		}
 	});
 	
-	return function() {
+	result =  function() {
 		return handler.apply(undefined, args);
-	}
+	};
+	result.origin = handler;
+	return result;
 }
 
 function findMatch(req, res) {
@@ -148,7 +158,7 @@ function rest(req, res, next) {
 		init();
 	}
 
-	var result,
+	var result,jsonResult,
 		handler = findMatch(req, res);
 
 	
@@ -161,7 +171,16 @@ function rest(req, res, next) {
 
 		if (result) {
 			res.writeHead(200,{'Content-Type':'application/json'});
-			res.end(JSON.stringify(result));
+			try {
+				jsonResult = JSON.stringify(result);
+			} catch(e) {
+				logger.error(['result of resouce handler can not be stringifed to JSON.','handler:',handler.origin.toString(),'result:',util.inspect(result)].join(' '));
+				throw {
+					code: 500,
+					msg: 'result can not be format to JSON'
+				};
+			}
+			res.end(jsonResult);
 		} else {
 			res.writeHead(204);
 			res.end();
@@ -185,6 +204,7 @@ function loadResource(path) {
 		try {
 			delete require.cache[absPath];
 			require(absPath);
+			logger.info(['load resouce file:',absPath].join(' '));
 		} catch(e) {
 			console.log(e);
 		}
