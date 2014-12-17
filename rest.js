@@ -104,6 +104,20 @@ function makeParameters(pNames, pValues) {
 	return result;
 }
 
+function findBindingValue(req, name) {
+	var bindingSeq = config.bindingSeq,
+		field,
+		i = 0, len = bindingSeq.length;
+
+	for(i; i<len; i++) {
+		field = bindingSeq[i];
+		if(req[field] && req[field][name]) {
+			return req[field][name];
+		}
+	}
+	return undefined;
+}
+
 function bindingArguments(handler, req, res ) {
 	var argNames = handler.args,
 		args = [];
@@ -113,24 +127,24 @@ function bindingArguments(handler, req, res ) {
 			args.push(req);
 		} else if (name === 'httpResponse') {
 			args.push(res);
-		} else if (req.pathParams[name]) {
-			args.push(req.pathParams[name]);
 		} else {
-			args.push(undefined);
+			args.push(findBindingValue(req, name));
 		}
 	});
 	
 	result =  function() {
 		return handler.apply(undefined, args);
 	};
+
 	result.origin = handler;
 	return result;
 }
 
 function findMatch(req, res) {
-	var pathname = url.parse(req.url).pathname,
+	var parseResult = url.parse(req.url, true),
+		pathname = parseResult.pathname,
 		m, handlerObj, pattern;
-
+	
 	for(pattern in handlerMap) {
 		handlerObj = handlerMap[pattern];
 		m = pathname.match(handlerObj.regexp);
@@ -145,6 +159,7 @@ function findMatch(req, res) {
 						req.method
 					].join(' '));
 				req.pathParams = makeParameters(handlerObj.params, m.slice(1));
+				req.query = parseResult.query;
 				return bindingArguments(handler,req,res);
 			}
 		}
@@ -203,8 +218,8 @@ function loadResource(path) {
 	if (s.isFile() && PATH.extname(path) === '.js') {
 		try {
 			delete require.cache[absPath];
-			require(absPath);
 			logger.info(['load resouce file:',absPath].join(' '));
+			require(absPath);
 		} catch(e) {
 			console.log(e);
 		}
@@ -230,6 +245,7 @@ function init() {
 var DEFAULT_CONFIG = { 
 	mode: 'dev',
 	resourceLocation : './resource',
+	bindingSeq: ['pathParams','query'],
 	logger: {
 		info: function() {},
 		warn: function() {},
