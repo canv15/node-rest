@@ -20,7 +20,7 @@ npm install node-restify
 
 ## License
 
-`node-extend` is licensed under the [MIT License][mit-license-url].
+`node-restify` is licensed under the [MIT License][mit-license-url].
 
 ## Acknowledgements
 
