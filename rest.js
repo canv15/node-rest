@@ -244,7 +244,7 @@ function init() {
 
 var DEFAULT_CONFIG = { 
 	mode: 'dev',
-	resourceLocation : './resource',
+	resourceLocation : './resources',
 	bindingSeq: ['pathParams','query'],
 	logger: {
 		info: function() {},
