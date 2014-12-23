@@ -120,6 +120,7 @@ function findBindingValue(req, name) {
 
 function bindingArguments(handler, req, res ) {
 	var argNames = handler.args,
+		result,
 		args = [];
 
 	argNames.forEach(function(name) {
@@ -167,40 +168,73 @@ function findMatch(req, res) {
 	}
 }
 
+function promise(handler) {
+	return function(req) {
+		var result;
+		try {
+			result = handler(req);
+			if(result && 
+				result.then && typeof result.then === 'function' &&
+				result.fail && typeof result.fail === 'function') {
+				return result;
+			} else {
+				return {
+					then: function(callback) {
+						callback(result);
+						return this;
+					},
+					fail: function(callback) {
+					}
+				};
+			}
+		} catch (e) {
+			return {
+				then: function(callback) {
+					return this;
+				},
+				fail: function(callback) {
+					callback(e);
+				}
+			};
+		}
+	};
+}
 
 function rest(req, res, next) {
 	if(config.mode === 'dev') {
 		init();
 	}
 
-	var result,jsonResult,
+	var pResult,jsonResult,
 		handler = findMatch(req, res);
-
 	
 	if(!handler) { return next(); }
 
-	try {
-		result = handler(req);
+	pResult = promise(handler)(req);
+	
+	delete req.pathParams;
 
-		delete req.pathParams;
-
+	if (handler.origin.args.indexOf('httpResponse') > -1) {
+		return;
+	}
+	pResult.then(function(result) {
 		if (result) {
 			res.writeHead(200,{'Content-Type':'application/json'});
 			try {
 				jsonResult = JSON.stringify(result);
 			} catch(e) {
 				logger.error(['result of resouce handler can not be stringifed to JSON.','handler:',handler.origin.toString(),'result:',util.inspect(result)].join(' '));
-				throw {
-					code: 500,
-					msg: 'result can not be format to JSON'
-				};
+				res.writeHead(500,{'Content-Type':'application/json'});
+				res.end(JSON.stringify('result can not be format to JSON'
+	));
+				return;
 			}
 			res.end(jsonResult);
 		} else {
 			res.writeHead(204);
 			res.end();
 		}
-	} catch (e) {
+	}).fail(function(e) {
 		if(typeof e.code === 'number' && e.msg) {
 			res.writeHead(e.code,{'Content-Type':'application/json'});
 			res.end(JSON.stringify(e.msg));
@@ -208,7 +242,7 @@ function rest(req, res, next) {
 			res.writeHead(500,{'Content-Type':'application/json'});
 			res.end(JSON.stringify(e));
 		}
-	}
+	});
 }
 
 
