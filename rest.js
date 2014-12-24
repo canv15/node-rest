@@ -105,12 +105,12 @@ function makeParameters(pNames, pValues) {
 }
 
 function findBindingValue(req, name) {
-	var bindingSeq = config.bindingSeq,
+	var scopes = config.scopes,
 		field,
-		i = 0, len = bindingSeq.length;
+		i = 0, len = scopes.length;
 
 	for(i; i<len; i++) {
-		field = bindingSeq[i];
+		field = scopes[i];
 		if(req[field] && req[field][name]) {
 			return req[field][name];
 		}
@@ -169,10 +169,10 @@ function findMatch(req, res) {
 }
 
 function promise(handler) {
-	return function(req) {
+	return function() {
 		var result;
 		try {
-			result = handler(req);
+			result = handler();
 			if(result && 
 				result.then && typeof result.then === 'function' &&
 				result.fail && typeof result.fail === 'function') {
@@ -210,7 +210,7 @@ function rest(req, res, next) {
 	
 	if(!handler) { return next(); }
 
-	pResult = promise(handler)(req);
+	pResult = promise(handler)();
 	
 	delete req.pathParams;
 
@@ -247,6 +247,9 @@ function rest(req, res, next) {
 
 
 function loadResource(path) {
+	if(!fs.existsSync(path)) {
+		return;
+	}
 	var s = fs.statSync(path);
 	var absPath = PATH.resolve(process.cwd() + '/' + path);
 	if (s.isFile() && PATH.extname(path) === '.js') {
@@ -277,9 +280,9 @@ function init() {
 
 
 var DEFAULT_CONFIG = { 
-	mode: 'dev',
+	mode: 'product',
 	resourceLocation : './resources',
-	bindingSeq: ['pathParams','query'],
+	scopes: ['pathParams','query'],
 	logger: {
 		info: function() {},
 		warn: function() {},
