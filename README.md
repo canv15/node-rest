@@ -316,7 +316,7 @@ resource('/foo',function() {
 		return {id:id};
 	});
 
-	//accessed by http://localhost:8080/rest/foo/order/hard PUT
+	//accessed by http://localhost:8080/rest/foo/order/hard DELETE 
 	del('/{name}/{type}', function(name, type) {
 		return {
 			action:'delete',
