@@ -189,7 +189,7 @@ You can add scope, for example, if middleware 'body-parser' be used, then reques
 #### Special Argument A: httpRequest
 In some case, you need access http request directly,you just add a argument named 'httpRequest' to your handler, node-restify will bind http request to it for you,  for example, after use 'body-parser', you want get post body rathen othen use it as a binding scope, you can access it by 'httpRequest.body'.
 
-#### Special Argument A: httpResponse
+#### Special Argument B: httpResponse
 Like http request, http response will be auto-binding to argument 'httpResponse' if you declared it in you handler arguements. BUT, used it carefully, it will cause side effect, more detail, see 'Asynchronize Response'
 
 #### Result and Error
