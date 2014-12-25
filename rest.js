@@ -235,12 +235,13 @@ function rest(req, res, next) {
 			res.end();
 		}
 	}).fail(function(e) {
+		logger.error(util.inspect(e),handler.origin.toString());
 		if(typeof e.code === 'number' && e.msg) {
 			res.writeHead(e.code,{'Content-Type':'application/json'});
 			res.end(JSON.stringify(e.msg));
 		} else {
 			res.writeHead(500,{'Content-Type':'application/json'});
-			res.end(JSON.stringify(e));
+			res.end(JSON.stringify(util.inspect(e)));
 		}
 	});
 }
@@ -302,15 +303,15 @@ module.exports = function(cfg) {
 	} 
 
 	config = extend(true,DEFAULT_CONFIG, cfg);
-	
-	if(config.mode === 'product') {
-		init();
-	}
 
 	if(typeof config.logger === 'function') {
 		logger = config.logger.call(undefined);
 	} else {
 		logger = config.logger;
+	}
+	
+	if(config.mode === 'product') {
+		init();
 	}
 
 	rest.clear = clearCache;

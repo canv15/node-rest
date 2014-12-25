@@ -21,20 +21,21 @@ npm install node-restify
 ```
 var http = require('http'),
 	connect = require('connect'),
-	rest = require('node-restify');
+	rest = require('../rest.js'); //require('node-restfiy') shourld be used in your code
 
 var app = connect()
 	.use(rest());
 
+
 http.createServer(app).listen(8080);	
 
 resource('/rest', function() {
-	get('/node-restify/{name}',function(name) {
-		return { msg: 'hello ' + name};
+	get('/{name}', function(name) {
+		return {msg: 'hello ' + name};
 	});
 });
 ```
-Access url http://localhost:8080/rest/node-restify/tony from your brower, you can get return message
+Access url http://localhost:8080/rest/node-restify from your brower, you can get return message
 ```
 {"msg":"hello tony"}
 ```
@@ -158,17 +159,42 @@ node-restify will binding argument and call handler when a http request matched 
 
 ...
 ```
-
-If no result returned, or undifined returned by handler, 204 will be as http code returned to client by node-restify
-
-'httpRequest' can be used as argument of handler, if you want to refer http request, like this:
+#### Arguments Binding
+Arguments of handler can be binded by node-restify, let's take a example:
 ```
-...
-	get('/foo', function(otherParameter1, httpRequest, otherParams2) {
+resource('/rest', function() {
+	get('/foo/{name}', function(name, action) {
 		...
-	}):
-...
+	});
+)};
 ```
+When this resoure access by url: ..../rest/foo/node-restify?action=display, path parameter will be parsed first, we call this scope 'pathParams':
+```
+{
+	name:'node-restify'
+}
+```
+Then, query string will be parsed, and we call this scope 'query'
+```
+{
+	action: 'display'
+}
+```
+arguments of handler 'name','action' will be dinded values from these scopes following the sequence defined by config object (see Configure Node-restify section),in this case, 'name' will be binded the value 'node-restify' and 'action' will be binded the value 'display'.You can define any number of arguments with handler, they will be all binded value from these scope.
+
+For a argument, if can not found value from first scope, node-restify will find next scope, until value be found or end of scope. In that case, undefinded will be bind to the argument.
+
+You can add scope, for example, if middleware 'body-parser' be used, then request.body can be access which added by 'body-parser', you can add scope 'body' by set config object property 'scopes' (see Configure Node-restify). You alse can binding sequence of scopes.
+
+#### Special Argument A: httpRequest
+In some case, you need access http request directly,you just add a argument named 'httpRequest' to your handler, node-restify will bind http request to it for you,  for example, after use 'body-parser', you want get post body rathen othen use it as a binding scope, you can access it by 'httpRequest.body'.
+
+#### Special Argument A: httpResponse
+Like http request, http response will be auto-binding to argument 'httpResponse' if you declared it in you handler arguements. BUT, used it carefully, it will cause side effect, more detail, see 'Asynchronize Response'
+
+#### Result and Error
+The return value will be tranformed to JSON string and write back to response. If no result returned, or undifined returned by handler, 204 will be as http code returned to client by node-restify
+
 500 will be return as http code to client, if any exception throw by handler. You can customize return code and message by throw your error by folowing format:
 ```
 ...
@@ -216,7 +242,158 @@ resource('/rest', function() {
 });
 ...
 ```
+
+## Example
+
+### Simple Server
+```
+var http = require('http'),
+	connect = require('connect'),
+	rest = require('../rest.js'); //require('node-restfiy') shourld be used in your code
+
+var app = connect()
+	.use(rest());
+
+
+http.createServer(app).listen(8080);	
+
+// accessed by url: http://localhost:8080/rest/node-restify GET
+resource('/rest', function() {
+	get('/{name}', function(name) {
+		return {msg: 'hello ' + name};
+	});
+});
+```
+
+### Server
+```
+var http = require('http'),
+	connect = require('connect'),
+	morgan = require('morgan'),
+	rest = require('../rest.js');  // require('node-restify') should be ueesd in your code
+
+var app = connect()
+	.use(morgan())
+	.use('/rest',rest({logger:console, mode: 'dev'}));
+	
+http.createServer(app).listen(8080);
+```
+
+```
+resource('/foo',function() {
+	//accessed by http://localhost:8080/rest/foo GET
+	get(function() {
+		return {msg:'GET /foo'};
+	});
+
+	//accessed by http://localhost:8080/rest/foo/bar GET
+	get('/bar',function() {
+		return {msg:'GET /foo/bar'};
+	});
+
+	
+	//accessed by http://localhost:8080/rest/foo/bar/123 GET
+	get('/bar/{id}', function(id) {
+		return {id:id};
+	});
+	
+	//accessed by http://localhost:8080/rest/foo/bar-query/123?type=test&name=node GET
+	get('/bar-query/{id}', function(id, type, name) {
+		return {
+			id:	id,
+			type: type,
+			name: name
+		};
+	});
+
+	//accessed by http://localhost:8080/rest/foo/bar POST 
+	post('/bar', function() {
+		return {msg:'POST /foo/bar'};
+	});
+
+	//accessed by http://localhost:8080/rest/foo/12345 PUT
+	put('/{id}',function(id) {
+		return {id:id};
+	});
+
+	//accessed by http://localhost:8080/rest/foo/order/hard PUT
+	del('/{name}/{type}', function(name, type) {
+		return {
+			action:'delete',
+			name: name,
+			type: type,
+		}
+	});
+```	
+### Advance Server
+```
+var http = require('http'),
+	connect = require('connect'),
+	morgan = require('morgan'),				
+	bodyParser = require('body-parser'),		
+	rest = require('../rest.js');  			// require('node-restify') should be ueesd in your code
+
+var app = connect()
+	.use(morgan())
+	.use(bodyParser.json())
+	.use('/rest',rest({
+		logger:console, 
+		mode: 'dev', 
+		resourceLocation: './res', 
+		scopes:['pathParams','query','body']
+	}));
+	
+http.createServer(app).listen(8080);	
+```
+
+```
+resource('/adv', function() {
+	// arguments binding by scope sequence
+	// accessed by http://localhost:8080/rest/adv/foo/bar?name=peter&action=query
+	// POST body: {"name":"body","action":"post","type":"override"}
+	// HTTP header: application/json
+	post('/foo/{name}', function(name, action, type) {
+		return {
+			name: name,
+			action: action,
+			type: type
+		};
+	});
+
+	// binding http request special name 'httpRequest'
+	// accessed by http://localhost:8080/rest/adv/body
+	// POST body: {"name":"body","action":"post","type":"override"}
+	// HTTP header: application/json
+	post('/body',function(httpRequest) {
+		var body = httpRequest.body;
+		return body;
+	});
+
+	//async call by callback style
+	get('/callback', function(httpResponse) {
+		fs.readdir('.', function(err, files) {
+			if(err) { 
+				httpResponse.writeHead(500,{'Content-Type':'application/json'});
+				httpResponse.end(JSON.stringify(util.inspect(err)));
+			}
+			httpResponse.writeHead(200,{'Content-Type':'application/json'});
+			httpResponse.end(JSON.stringify(util.inspect(files)));
+
+		});
+
+	});
+
+	//async call by promise style
+	get('/promise',function() {
+		return Q.nfcall(fs.readdir,'.');
+	});
+
+});
+```
+All sample code can be found in directory 'example'.
+All test case can be found in directory 'test' (mocha need be install before run test case)
+
 ##License
-`node-restify` is licensed under the [MIT License][mit-license-url].
+`node-restify` is licensed under the MIT License.
 
 

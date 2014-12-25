@@ -1,14 +1,10 @@
 var http = require('http'),
-	url = require('url'),
 	connect = require('connect'),
-	//morgan = require('morgan'),
-	////bodyParse = require('body-parser'),
-	rest = require('../rest.js');
+	morgan = require('morgan'),
+	rest = require('../rest.js');  // require('node-restify') should be ueesd in your code
 
 var app = connect()
-	//.use(morgan())
-	//.use(bodyParse.json())
-	.use(rest());
-
-
+	.use(morgan())
+	.use('/rest',rest({logger:console, mode: 'dev'}));
+	
 http.createServer(app).listen(8080);	

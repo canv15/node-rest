@@ -201,7 +201,7 @@ describe('url match', function() {
 			};
 		rest(req, res, mockUNext);
 		assert.equal(res.code,500);
-		assert.equal(JSON.parse(res.body),'error');
+		assert.equal(JSON.parse(res.body),"'error'");
 	});
 
 	it('handle special error throwen by resource', function() {
