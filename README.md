@@ -21,7 +21,7 @@ npm install node-restify
 ```
 var http = require('http'),
 	connect = require('connect'),
-	rest = require('../rest.js'); //require('node-restfiy') shourld be used in your code
+	rest = require('node-restify'); 
 
 var app = connect()
 	.use(rest());
