@@ -7,6 +7,8 @@ It route http request to special handler by request url patter, and binding path
 
 
 ## Installation
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fcanv15%2Fnode-rest.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fcanv15%2Fnode-rest?ref=badge_shield)
+
 
 This package is available on 'npm' as: `node-restify`
 
@@ -397,3 +399,6 @@ All test case can be found in directory 'test' (mocha need be install before run
 `node-restify` is licensed under the MIT License.
 
 
+
+
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fcanv15%2Fnode-rest.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fcanv15%2Fnode-rest?ref=badge_large)
